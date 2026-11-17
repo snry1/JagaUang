@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidWallet(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 40 &&
+             data.kind is string && data.kind in ['CASH', 'BANK', 'EWALLET', 'SAVINGS'] &&
+             data.initialBalance is int &&
+             data.initialBalance >= -1000000000000 &&
+             data.initialBalance <= 1000000000000 &&
+             data.colorKey is string &&
+             data.colorKey in ['EMERALD', 'COBALT', 'AMBER', 'TERRACOTTA', 'PLUM', 'SLATE'];
+    }
+
+    function isValidTransaction(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.type is string && data.type in ['EXPENSE', 'INCOME'] &&
+             data.amount is int && data.amount > 0 && data.amount <= 1000000000000 &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 40 &&
+             data.walletId is string && data.walletId.size() >= 1 && data.walletId.size() <= 128 &&
+             data.note is string && data.note.size() <= 120 &&
+             data.dateEpochMillis is int && data.dateEpochMillis > 0 && data.dateEpochMillis <= 4102444800000;
+    }
+
+    function isValidBudget(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 40 &&
+             data.monthKey is string && data.monthKey.size() == 7 &&
+             data.monthKey.matches('^[0-9]{4}-(0[1-9]|1[0-2])$') &&
+             data.limitAmount is int && data.limitAmount > 0 && data.limitAmount <= 1000000000000;
+    }
+
+    // --- USER-SCOPED SUBCOLLECTIONS ---
+    match /users/{userId}/wallets/{walletId} {
+      allow get: if isOwner(userId) && isValidId(walletId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(walletId) &&
+                       incoming().keys().hasAll(['userId', 'name', 'kind', 'initialBalance', 'colorKey', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'name', 'kind', 'initialBalance', 'colorKey', 'createdAt', 'updatedAt']) &&
+                       isValidWallet(incoming()) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time;
+
+      allow update: if isOwner(userId) &&
+                       isValidId(walletId) &&
+                       isValidWallet(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'kind', 'initialBalance', 'colorKey', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(walletId);
+    }
+
+    match /users/{userId}/transactions/{transactionId} {
+      allow get: if isOwner(userId) && isValidId(transactionId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(transactionId) &&
+                       incoming().keys().hasAll(['userId', 'type', 'amount', 'categoryId', 'walletId', 'note', 'dateEpochMillis', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'type', 'amount', 'categoryId', 'walletId', 'note', 'dateEpochMillis', 'createdAt', 'updatedAt']) &&
+                       isValidTransaction(incoming()) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time;
+
+      allow update: if isOwner(userId) &&
+                       isValidId(transactionId) &&
+                       isValidTransaction(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['type', 'amount', 'categoryId', 'walletId', 'note', 'dateEpochMillis', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(transactionId);
+    }
+
+    match /users/{userId}/budgets/{budgetId} {
+      allow get: if isOwner(userId) && isValidId(budgetId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(budgetId) &&
+                       incoming().keys().hasAll(['userId', 'categoryId', 'monthKey', 'limitAmount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'categoryId', 'monthKey', 'limitAmount', 'createdAt', 'updatedAt']) &&
+                       isValidBudget(incoming()) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time;
+
+      allow update: if isOwner(userId) &&
+                       isValidId(budgetId) &&
+                       isValidBudget(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().categoryId == existing().categoryId &&
+                       incoming().monthKey == existing().monthKey &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['limitAmount', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(budgetId);
+    }
+  }
+}

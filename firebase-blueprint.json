@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "Wallet": {
+      "title": "Wallet",
+      "description": "User-owned financial wallet or account (cash, bank, e-wallet, savings).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the wallet owner."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the wallet (1-40 chars)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["CASH", "BANK", "EWALLET", "SAVINGS"],
+          "description": "Account type classification."
+        },
+        "initialBalance": {
+          "type": "integer",
+          "description": "Opening balance in IDR Rupiah."
+        },
+        "colorKey": {
+          "type": "string",
+          "enum": ["EMERALD", "COBALT", "AMBER", "TERRACOTTA", "PLUM", "SLATE"],
+          "description": "Semantic accent color key."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "name", "kind", "initialBalance", "colorKey", "createdAt", "updatedAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Personal income or expense ledger entry.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the transaction owner."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["EXPENSE", "INCOME"],
+          "description": "Transaction direction."
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Positive transaction amount in IDR Rupiah."
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Category identifier (1-40 chars)."
+        },
+        "walletId": {
+          "type": "string",
+          "description": "Associated wallet document ID."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional note or merchant description (0-120 chars)."
+        },
+        "dateEpochMillis": {
+          "type": "integer",
+          "description": "Transaction timestamp in UTC epoch milliseconds."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "type", "amount", "categoryId", "walletId", "note", "dateEpochMillis", "createdAt", "updatedAt"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly spending cap for a specific expense category.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the budget owner."
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Expense category identifier (1-40 chars)."
+        },
+        "monthKey": {
+          "type": "string",
+          "description": "Year-month key formatted as YYYY-MM."
+        },
+        "limitAmount": {
+          "type": "integer",
+          "description": "Monthly spending limit in IDR Rupiah."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "categoryId", "monthKey", "limitAmount", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/wallets/{walletId}": {
+      "schema": { "$ref": "#/entities/Wallet" },
+      "description": "User-scoped personal wallets and accounts."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "User-scoped income and expense ledger entries."
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/Budget" },
+      "description": "User-scoped monthly category budgets."
+    }
+  }
+}

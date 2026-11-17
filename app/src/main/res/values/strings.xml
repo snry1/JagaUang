@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">KasKu</string>
+    <string name="tagline">Catat arus uang pribadi dengan tenang dan rapi</string>
+    <string name="sign_in_google">Masuk dengan Google</string>
+    <string name="sign_out">Keluar</string>
+    <string name="nav_overview">Ringkasan</string>
+    <string name="nav_transactions">Transaksi</string>
+    <string name="nav_wallets">Dompet</string>
+    <string name="nav_budgets">Anggaran</string>
+    <string name="add_transaction">Catat Transaksi</string>
+    <string name="empty_transactions_title">Belum ada catatan</string>
+    <string name="empty_transactions_subtitle">Mulai catat pemasukan atau pengeluaran pertamamu hari ini.</string>
+</resources>
